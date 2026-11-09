@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F5F6F3; --surface: #FFFFFF; --ink: #22302B; --muted: #66726D; --line: #DDE2DE;
+    --alice: #4F7A66; --sandra: #C0606F; --oak: #B8925A; --focus: #2F6FD0;
+    --radius-s: 6px; --radius-l: 18px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #151A18; --surface: #1E2522; --ink: #E8EDEA; --muted: #9AA6A0; --line: #2E3834;
+      --alice: #7DB39A; --sandra: #E58C9A; --oak: #D3AE72; --focus: #7FB0FF;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  header { position: sticky; top: 0; z-index: 5; background: var(--paper);
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 10px; border-bottom: 1px solid var(--line); }
+  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  h1 { font-family: Literata, Georgia, serif; font-weight: 700; font-size: 1.55rem; margin: 0; letter-spacing: -0.01em; }
+  .count { color: var(--muted); font-size: .9rem; white-space: nowrap; }
+  .search { margin-top: 10px; width: 100%; padding: 11px 14px; border: 1px solid var(--line);
+    border-radius: var(--radius-l); background: var(--surface); }
+  .filters { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: none; }
+  .filters::-webkit-scrollbar { display: none; }
+  .filters select { flex: 0 0 auto; padding: 7px 10px; border: 1px solid var(--line);
+    border-radius: 999px; background: var(--surface); font-size: .9rem; max-width: 70vw; }
+  .filters select.active, .chip.active { border-color: var(--ink); font-weight: 600; }
+  .chip { flex: 0 0 auto; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px;
+    background: var(--surface); font-size: .9rem; cursor: pointer; white-space: nowrap; }
+  .chip::after { content: " ▾"; color: var(--muted); }
+  .typelist { list-style: none; margin: 0; padding: 0; max-height: 55vh; overflow-y: auto; }
+  .typelist label { display: flex; align-items: center; gap: 10px; color: var(--ink); font-size: 1rem;
+    margin: 0; padding: 9px 2px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .typelist input { width: 20px; height: 20px; accent-color: var(--ink); }
+  .typelist .n { margin-left: auto; color: var(--muted); font-size: .85rem; }
+  .quick { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; scrollbar-width: none; }
+  .tabs button { flex: 0 0 auto; border: 0; background: none; padding: 8px 12px; border-radius: 999px;
+    color: var(--muted); font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+  .rank { font-family: Literata, Georgia, serif; font-weight: 700; font-size: 1.4rem; color: var(--oak);
+    float: left; margin: -2px 10px 0 0; min-width: 1.4em; text-align: right; }
+  .palbar { display: flex; gap: 6px; margin-top: 8px; }
+  .palbar .btn { padding: 6px 12px; font-size: .85rem; }
+  .palbar .btn[disabled] { opacity: .35; cursor: default; }
+  .paltag { color: var(--oak); font-weight: 600; }
+  .check { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: .95rem; margin-top: 12px; }
+  .check input { width: 20px; height: 20px; accent-color: var(--ink); }
+  body.palview .filters, body.palview .legend { display: none; }
+
+  main { max-width: 760px; margin: 0 auto; padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 96px); }
+  .book { display: grid; grid-template-columns: 8px 1fr auto; align-items: stretch;
+    background: var(--surface); border-radius: var(--radius-s); margin: 6px 0; overflow: hidden;
+    border: 1px solid var(--line); }
+  .spine { background: var(--c, var(--oak)); }
+  .body { padding: 10px 12px; min-width: 0; cursor: pointer; }
+  .title { font-family: Literata, Georgia, serif; font-weight: 500; font-size: 1.05rem; line-height: 1.25; }
+  .author { color: var(--muted); font-size: .92rem; margin-top: 2px; }
+  .meta { color: var(--muted); font-size: .8rem; margin-top: 4px; }
+  .readers { display: flex; gap: 6px; align-items: center; padding: 0 10px; }
+  .r { width: 40px; height: 40px; border-radius: 50%; border: 2px dashed var(--line); background: transparent;
+    font-weight: 700; font-size: .95rem; color: var(--muted); cursor: pointer; position: relative; }
+  .r[data-s="pas lu"] { border: 2px solid var(--rc); color: var(--rc); }
+  .r[data-s="lu"] { border: 2px solid var(--rc); background: var(--rc); color: var(--surface); }
+  .r[data-s="lu"]::after { content: "✓"; position: absolute; right: -3px; bottom: -3px; font-size: .7rem;
+    background: var(--surface); color: var(--rc); border-radius: 50%; width: 16px; height: 16px; line-height: 16px; }
+  .details { grid-column: 2 / -1; padding: 0 12px 12px; font-size: .92rem; display: none; }
+  .book.open .details { display: block; }
+  .details dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0 0 10px; }
+  .details dt { color: var(--muted); }
+  .details dd { margin: 0; }
+  .details p { margin: 0 0 10px; max-width: 65ch; }
+  .row-actions { display: flex; gap: 8px; }
+  .btn { padding: 9px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+  .btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 600; }
+  .btn.danger { color: var(--sandra); }
+  .empty { text-align: center; color: var(--muted); padding: 48px 16px; }
+  .legend { display: flex; gap: 14px; font-size: .82rem; color: var(--muted); padding: 6px 4px; flex-wrap: wrap; }
+  .legend b { color: var(--ink); }
+
+  .fab { position: fixed; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); z-index: 6;
+    padding: 14px 22px; border-radius: 999px; border: 0; background: var(--ink); color: var(--paper);
+    font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.18); cursor: pointer; }
+
+  dialog { border: 0; border-radius: var(--radius-l); padding: 0; width: min(560px, 94vw);
+    background: var(--surface); color: var(--ink); }
+  dialog::backdrop { background: rgba(10, 15, 13, .45); }
+  form { padding: 18px; }
+  form h2 { font-family: Literata, Georgia, serif; margin: 0 0 12px; font-size: 1.3rem; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin: 10px 0 4px; }
+  form input, form textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: var(--radius-s); background: var(--paper); }
+  .isbn { display: flex; gap: 8px; }
+  .isbn input { flex: 1; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+  .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .hint { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); transform: translateX(-50%);
+    background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-size: .9rem;
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; max-width: 90vw; }
+  .toast.show { opacity: 1; }
+  .loading { padding: 60px 16px; text-align: center; color: var(--muted); }
+  .who { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+  .who b { color: var(--me, var(--ink)); }
+  .readonly { background: #FFF4D6; color: #6B5200; padding: 8px 12px; border-radius: var(--radius-s); font-size: .88rem; margin-top: 8px; }
+  @media (prefers-color-scheme: dark) { .readonly { background: #3A3216; color: #F1DB98; } }
+  .r[disabled] { cursor: default; opacity: .85; }
+  .r[disabled][data-s=""] { opacity: .45; }
+  .comments { border-top: 1px solid var(--line); padding-top: 10px; margin: 10px 0; display: grid; gap: 12px; }
+  .comment h3 { font-size: .85rem; margin: 0 0 4px; color: var(--rc); }
+  .comment p { margin: 0; white-space: pre-wrap; }
+  .comment .none { color: var(--muted); font-style: italic; }
+  .comment textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--radius-s);
+    background: var(--paper); min-height: 70px; resize: vertical; }
+  .comment .save { margin-top: 6px; }
+  .bubble { color: var(--muted); }
+  .toast button { margin-left: 10px; background: none; border: 0; color: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+  .toast.show { pointer-events: auto; }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Notre bibliothèque</h1>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="who" id="who"></div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Vue"></nav>
+  <input class="search" id="q" type="search" placeholder="Titre, auteur·ice, thème…" autocomplete="off" aria-label="Rechercher un livre">
+  <div class="filters">
+    <button type="button" class="chip" id="fType" aria-haspopup="dialog">Tous les types</button>
+    <select id="fPlace" aria-label="Emplacement"></select>
+    <select id="fRead" aria-label="Lecture"></select>
+    <select id="fSort" aria-label="Tri">
+      <option value="author">Tri : auteur·ice</option>
+      <option value="title">Tri : titre</option>
+      <option value="recent">Tri : ajouts récents</option>
+    </select>
+  </div>
+</header>
+
+<main>
+  <div class="legend" id="legend"></div>
+  <div id="list"><div class="loading">Chargement des livres…</div></div>
+</main>
+
+<button class="fab" id="addBtn">Ajouter un livre</button>
+
+<dialog id="dlg">
+  <form id="form" method="dialog">
+    <h2 id="formTitle">Ajouter un livre</h2>
+    <label for="isbn">ISBN (au dos du livre, facultatif)</label>
+    <div class="isbn">
+      <input id="isbn" inputmode="numeric" placeholder="978…">
+      <button type="button" class="btn" id="isbnBtn">Remplir</button>
+    </div>
+    <div class="hint" id="isbnHint"></div>
+    <label for="f-Titre">Titre</label>
+    <input id="f-Titre" name="Titre" required>
+    <label for="f-Auteur">Auteur·ice(s)</label>
+    <input id="f-Auteur" name="Auteur·ice(s)" placeholder="Prénom Nom & Prénom Nom">
+    <div class="grid2">
+      <div><label for="f-Type">Type</label><input id="f-Type" name="Type" list="dlTypes"></div>
+      <div><label for="f-Langue">Langue</label><input id="f-Langue" name="Langue" list="dlLang"></div>
+    </div>
+    <label for="f-Place">Emplacement</label>
+    <input id="f-Place" name="Emplacement" list="dlPlaces">
+    <div class="grid2">
+      <div><label for="f-Theme">Thème / genre</label><input id="f-Theme" name="Thème / genre"></div>
+      <div><label for="f-Ed">Éditeur / collection</label><input id="f-Ed" name="Éditeur / collection"></div>
+    </div>
+    <label for="f-Resume">Résumé</label>
+    <textarea id="f-Resume" name="Résumé" rows="3"></textarea>
+    <label for="f-Rem">Remarque (visible par les deux)</label>
+    <input id="f-Rem" name="Remarque">
+    <div id="mineFields">
+      <label for="f-MyStatus">Mon statut</label>
+      <select id="f-MyStatus" class="btn" style="width:100%;text-align:left">
+        <option value="">Non renseigné</option><option value="lu">Lu</option><option value="pas lu">Pas lu</option>
+      </select>
+      <label for="f-MyComment">Mon commentaire</label>
+      <textarea id="f-MyComment" rows="3"></textarea>
+      <label class="check"><input type="checkbox" id="f-MyPal"> Ajouter à ma PAL</label>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn" id="cancelBtn">Annuler</button>
+      <button type="submit" class="btn primary" id="saveBtn">Ajouter</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="typeDlg" aria-labelledby="typeDlgTitle">
+  <form method="dialog">
+    <h2 id="typeDlgTitle">Types affichés</h2>
+    <div class="quick">
+      <button type="button" class="btn" id="typesAll">Tout cocher</button>
+      <button type="button" class="btn" id="typesNone">Tout décocher</button>
+    </div>
+    <ul class="typelist" id="typeList"></ul>
+    <div class="form-actions"><button class="btn primary">Valider</button></div>
+  </form>
+</dialog>
+<datalist id="dlTypes"></datalist><datalist id="dlLang"></datalist><datalist id="dlPlaces"></datalist>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const S = { books: [], readers: [], options: {}, open: null, editing: null, excluded: new Set(), view: 'all' };
+const PREFS_KEY = 'biblio-prefs';
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}'); } catch (e) { return {}; }
+}
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ excluded: [...S.excluded], read: $('fRead').value })); } catch (e) {}
+}
+const $ = id => document.getElementById(id);
+const READER_COLORS = ['var(--alice)', 'var(--sandra)', 'var(--oak)'];
+const TYPE_COLORS = {
+  'Roman': '#5B7FA6', 'BD / roman graphique': '#D9824B', 'Manga': '#D9824B', 'Essai': '#4F7A66',
+  'Poésie': '#8C6A9E', 'Cuisine': '#C9A23C', 'Récit / mémoires': '#6F8FB0', 'Jeunesse': '#C0606F',
+  'Théâtre': '#9E5A5A', 'Polar': '#3F4A5C', 'Nouvelles': '#7C93B8', 'Revue': '#8C6A9E',
+};
+
+/* ---------- Appels serveur ---------- */
+function call(fn, ...args) {
+  return new Promise((resolve, reject) =>
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(e => reject(e))[fn](...args));
+}
+function toast(msg, action) {
+  const t = $('toast'); t.textContent = msg;
+  if (action) {
+    const b = document.createElement('button'); b.textContent = action.label;
+    b.onclick = () => { t.classList.remove('show'); action.run(); }; t.appendChild(b);
+  }
+  t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), action ? 6000 : 2600);
+}
+const cKey = n => S.commentPrefix + n;
+/** Ma PAL (privée), dans l'ordre : liste d'objets livres */
+const myPalBooks = () => (S.myPal || []).map(id => S.books.find(b => b.id === id)).filter(Boolean);
+const readerColor = n => READER_COLORS[S.readers.indexOf(n)] || 'var(--ink)';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clean = v => (v && v !== '—') ? v : '';
+const norm = s => String(s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+
+/* Nom de tri : nom de famille du premier auteur, particules minuscules ignorées */
+function sortName(a) {
+  a = String(a || '').replace(/\s*\(.*?\)/g, '').trim();
+  if (!a || a === '—') return 'zzzz';
+  if (/^collectif/i.test(a)) return 'zzzy';
+  const first = a.split(/\s*(?:&|,| \/ | et )\s*/)[0].replace(/[?!.]/g, '').trim().split(/\s+/);
+  const out = [first.pop()];
+  while (first.length && /^(Le|La|De|Del|Van|Von)$/.test(first[first.length - 1])) out.unshift(first.pop());
+  return norm(out.join(' '));
+}
+
+/* ---------- Chargement ---------- */
+async function init() {
+  try {
+    const d = await call('getInitialData');
+    Object.assign(S, d);
+    S.books.forEach((b, i) => b._i = i);
+    $('who').innerHTML = S.me
+      ? `Connectée : <b style="--me:${readerColor(S.me)}">${esc(S.me)}</b>`
+      : `<div class="readonly">Ton compte (${esc(S.email || 'inconnu')}) n'est pas dans la liste : tu peux consulter, mais pas modifier.</div>`;
+    if (!S.me) $('addBtn').hidden = true;
+    buildFilters(); render();
+  } catch (e) {
+    $('list').innerHTML = `<div class="empty">Impossible de lire la feuille : ${esc(e.message)}<br>Vérifie que tu as accès à la Google Sheet, puis recharge.</div>`;
+  }
+}
+
+function buildFilters() {
+  const opt = (v, l) => `<option value="${esc(v)}">${esc(l)}</option>`;
+
+  $('fPlace').innerHTML = opt('', 'Tous les emplacements') + S.options.places.map(p => opt(p, p)).join('');
+  let r = opt('', 'Toutes les lectures');
+  if (S.me) r += opt('me:not', 'Pas encore lu par moi') + opt('me:lu', 'Lu par moi');
+  S.readers.filter(n => n !== S.me).forEach(n => { r += opt('not:' + n, `Pas encore lu par ${n}`) + opt('lu:' + n, `Lu par ${n}`); });
+  r += opt('both', 'Lu par les deux') + opt('none', 'Lu par aucune') + opt('comment', 'Avec commentaire');
+  $('fRead').innerHTML = r;
+  const prefs = loadPrefs();
+  S.excluded = new Set((prefs.excluded || []).filter(t => S.options.types.includes(t)));
+  if (prefs.read !== undefined && [...$('fRead').options].some(o => o.value === prefs.read)) $('fRead').value = prefs.read;
+  else if (S.me) $('fRead').value = 'me:not';
+  buildTypeList();
+  $('dlTypes').innerHTML = S.options.types.map(t => `<option value="${esc(t)}">`).join('');
+  $('dlPlaces').innerHTML = S.options.places.map(t => `<option value="${esc(t)}">`).join('');
+  $('dlLang').innerHTML = S.options.languages.map(t => `<option value="${esc(t)}">`).join('');
+  $('legend').innerHTML = S.readers.map((n, i) =>
+    `<span><b style="color:${READER_COLORS[i]}">${esc(n[0])}</b> ${esc(n)}</span>`).join('') +
+    (S.me ? '<span>Touche ta pastille : lu → pas lu → vide</span>' : '');
+}
+
+/* ---------- Affichage ---------- */
+function matchQuery(b, q) {
+  if (!q) return true;
+  const hay = norm([b['Titre'], b['Auteur·ice(s)'], b['Thème / genre'], b['Éditeur / collection'],
+                    ...S.readers.map(n => b[cKey(n)])].join(' '));
+  return q.split(/\s+/).every(w => hay.includes(w));
+}
+
+function filtered() {
+  if (S.view === 'pal') return myPalBooks().filter(b => matchQuery(b, norm($('q').value.trim())));
+  const q = norm($('q').value.trim()), place = $('fPlace').value;
+  let rd = $('fRead').value;
+  if (rd === 'me:not') rd = 'not:' + S.me;
+  else if (rd === 'me:lu') rd = 'lu:' + S.me;
+  let list = S.books.filter(b => {
+    if (S.excluded.has(b['Type'] || '')) return false;
+    if (place && b['Emplacement'] !== place) return false;
+    if (rd) {
+      const st = S.readers.map(n => b[n]);
+      if (rd === 'both' && !st.every(s => s === 'lu')) return false;
+      if (rd === 'none' && st.some(s => s === 'lu')) return false;
+      if (rd === 'comment' && !S.readers.some(n => b[cKey(n)])) return false;
+      const [k, n] = rd.split(':');
+      if (k === 'not' && b[n] === 'lu') return false;
+      if (k === 'lu' && b[n] !== 'lu') return false;
+    }
+    if (q) {
+      const hay = norm([b['Titre'], b['Auteur·ice(s)'], b['Thème / genre'], b['Éditeur / collection'],
+                        ...S.readers.map(n => b[cKey(n)])].join(' '));
+      if (!q.split(/\s+/).every(w => hay.includes(w))) return false;
+    }
+    return true;
+  });
+  const sort = $('fSort').value;
+  if (sort === 'title') list.sort((a, b) => a['Titre'].localeCompare(b['Titre'], 'fr'));
+  else if (sort === 'recent') list.sort((a, b) => b._i - a._i);
+  else list.sort((a, b) => sortName(a['Auteur·ice(s)']).localeCompare(sortName(b['Auteur·ice(s)']), 'fr')
+                        || a['Titre'].localeCompare(b['Titre'], 'fr'));
+  return list;
+}
+
+function renderTabs() {
+  const tabs = [['all', 'Tous les livres']];
+  if (S.me) tabs.push(['pal', `Ma PAL · ${myPalBooks().length}`]);
+  $('tabs').innerHTML = tabs.map(([v, l]) =>
+    `<button role="tab" data-view="${esc(v)}" aria-selected="${S.view === v}">${esc(l)}</button>`).join('');
+  document.body.classList.toggle('palview', S.view !== 'all');
+}
+$('tabs').addEventListener('click', e => {
+  const t = e.target.closest('[data-view]'); if (!t) return;
+  S.view = t.dataset.view; S.open = null; render(); window.scrollTo(0, 0);
+});
+
+function render() {
+  renderTabs();
+  ['fPlace', 'fRead'].forEach(id => $(id).classList.toggle('active', !!$(id).value));
+  updateTypeChip();
+  const list = filtered();
+  $('count').textContent = S.view === 'all' ? `${list.length} / ${S.books.length} livres` : `${list.length} livre(s)`;
+  if (!list.length && S.view === 'pal') {
+    $('list').innerHTML = `<div class="empty">Ta PAL est vide.<br>Ouvre un livre dans « Tous les livres » et touche « Ajouter à ma PAL ».<br><br>Elle est privée : toi seule la vois.</div>`;
+    return;
+  }
+  if (!list.length) {
+    $('list').innerHTML = `<div class="empty">Aucun livre ne correspond.<br><br>
+      <button class="btn" onclick="resetFilters()">Effacer les filtres</button></div>`;
+    return;
+  }
+  $('list').innerHTML = list.map(bookHtml).join('');
+}
+
+function bookHtml(b) {
+  const pills = S.readers.map((n, i) => {
+    const s = b[n] || '';
+    const label = `${n} : ${s || 'non renseigné'}`;
+    const mine = n === S.me;
+    return `<button class="r" style="--rc:${READER_COLORS[i]}" data-id="${esc(b.id)}" data-reader="${esc(n)}"
+      data-s="${esc(s)}" aria-label="${esc(label)}" title="${esc(label)}" ${mine ? '' : 'disabled'}>${esc(n[0])}</button>`;
+  }).join('');
+  const nCom = S.readers.filter(n => b[cKey(n)]).length;
+  const inPalView = S.view === 'pal';
+  const myPal = S.myPal || [];
+  const myRank = myPal.indexOf(b.id) + 1;
+  const rankHtml = inPalView ? `<span class="rank">${myRank}</span>` : '';
+  const palbar = inPalView ? `<div class="palbar">
+      <button class="btn" data-up="${esc(b.id)}" ${myRank === 1 ? 'disabled' : ''} aria-label="Monter">↑</button>
+      <button class="btn" data-down="${esc(b.id)}" ${myRank === myPal.length ? 'disabled' : ''} aria-label="Descendre">↓</button>
+      <button class="btn" data-pal="${esc(b.id)}" data-on="0" aria-label="Retirer de ma PAL">Retirer</button></div>` : '';
+  const meta = [b['Type'], b['Emplacement']].filter(Boolean).map(esc).join(' – ')
+    + (nCom ? ` <span class="bubble" title="${nCom} commentaire(s)">💬 ${nCom}</span>` : '')
+    + (myRank && !inPalView ? ` <span class="paltag">· PAL n°${myRank}</span>` : '');
+  const comments = S.readers.map((n, i) => {
+    const txt = b[cKey(n)] || '';
+    if (n === S.me) return `<div class="comment" style="--rc:${READER_COLORS[i]}">
+        <h3>Mon commentaire</h3>
+        <textarea data-cid="${esc(b.id)}" aria-label="Mon commentaire" placeholder="Ce que j'en ai pensé…">${esc(txt)}</textarea>
+        <button class="btn save" data-save="${esc(b.id)}">Enregistrer le commentaire</button></div>`;
+    return `<div class="comment" style="--rc:${READER_COLORS[i]}"><h3>${esc(n)}</h3>
+        ${txt ? `<p>${esc(txt)}</p>` : `<p class="none">Pas encore de commentaire.</p>`}</div>`;
+  }).join('');
+  const open = S.open === b.id;
+  const dl = [['Thème', b['Thème / genre']], ['Langue', b['Langue']], ['Éditeur', b['Éditeur / collection']],
+              ['Remarque', b['Remarque']]].filter(([, v]) => clean(v))
+              .map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
+  return `<article class="book${open ? ' open' : ''}" style="--c:${TYPE_COLORS[b['Type']] || 'var(--oak)'}">
+    <div class="spine"></div>
+    <div class="body" data-open="${esc(b.id)}">
+      ${rankHtml}<div class="title">${esc(b['Titre'])}</div>
+      <div class="author">${esc(clean(b['Auteur·ice(s)']) || 'Auteur·ice inconnu·e')}</div>
+      <div class="meta">${meta}</div>
+      ${palbar}
+    </div>
+    <div class="readers">${pills}</div>
+    <div class="details">
+      ${dl ? `<dl>${dl}</dl>` : ''}
+      ${b['Résumé'] ? `<p>${esc(b['Résumé'])}</p>` : ''}
+      <div class="comments">${comments}</div>
+      ${S.me && !inPalView ? `<div class="row-actions" style="margin-bottom:8px">
+        <button class="btn" data-pal="${esc(b.id)}" data-on="${myRank ? 0 : 1}">${myRank ? 'Retirer de ma PAL' : '📚 Ajouter à ma PAL'}</button>
+      </div>` : ''}
+      ${S.me && S.sharedEdit ? `<div class="row-actions">
+        <button class="btn" data-edit="${esc(b.id)}">Modifier les infos</button>
+        <button class="btn danger" data-del="${esc(b.id)}">Retirer</button>
+      </div>` : ''}
+    </div>
+  </article>`;
+}
+
+function resetFilters() {
+  $('q').value = ''; ['fPlace', 'fRead'].forEach(id => $(id).value = '');
+  S.excluded.clear(); buildTypeList(); savePrefs(); render();
+}
+
+/* ---------- Filtre multi-types ---------- */
+function buildTypeList() {
+  const counts = {};
+  S.books.forEach(b => counts[b['Type']] = (counts[b['Type']] || 0) + 1);
+  $('typeList').innerHTML = S.options.types.map(t => `<li><label>
+      <input type="checkbox" value="${esc(t)}" ${S.excluded.has(t) ? '' : 'checked'}>
+      ${esc(t)}<span class="n">${counts[t] || 0}</span></label></li>`).join('');
+}
+function updateTypeChip() {
+  const total = S.options.types.length, hidden = S.excluded.size, chip = $('fType');
+  chip.classList.toggle('active', hidden > 0);
+  if (!hidden) chip.textContent = 'Tous les types';
+  else if (hidden === 1) chip.textContent = `Sans ${[...S.excluded][0]}`;
+  else if (total - hidden === 1) chip.textContent = S.options.types.find(t => !S.excluded.has(t));
+  else chip.textContent = `${total - hidden} types sur ${total}`;
+}
+$('fType').onclick = () => { buildTypeList(); $('typeDlg').showModal(); };
+$('typeList').addEventListener('change', e => {
+  const t = e.target.value;
+  e.target.checked ? S.excluded.delete(t) : S.excluded.add(t);
+  savePrefs(); render();
+});
+$('typesAll').onclick = () => { S.excluded.clear(); buildTypeList(); savePrefs(); render(); };
+$('typesNone').onclick = () => { S.excluded = new Set(S.options.types); buildTypeList(); savePrefs(); render(); };
+
+/* ---------- Interactions ---------- */
+$('list').addEventListener('click', async e => {
+  const pill = e.target.closest('.r');
+  if (pill) return pill.disabled ? null : cycleStatus(pill);
+  const sv = e.target.closest('[data-save]');
+  if (sv) return saveComment(sv);
+  if (e.target.closest('textarea')) return;
+  const pb = e.target.closest('[data-pal]');
+  if (pb) return togglePal(pb.dataset.pal, pb.dataset.on === '1');
+  const up = e.target.closest('[data-up]'), down = e.target.closest('[data-down]');
+  if (up || down) return movePal((up || down).dataset[up ? 'up' : 'down'], up ? -1 : 1);
+  const ed = e.target.closest('[data-edit]');
+  if (ed) return openForm(S.books.find(b => b.id === ed.dataset.edit));
+  const del = e.target.closest('[data-del]');
+  if (del) return removeBook(del.dataset.del);
+  const body = e.target.closest('[data-open]');
+  if (body) { S.open = S.open === body.dataset.open ? null : body.dataset.open; render(); }
+});
+
+async function cycleStatus(pill) {
+  const { id, reader } = pill.dataset;
+  const b = S.books.find(x => x.id === id);
+  const order = ['', 'lu', 'pas lu'];
+  const prev = b[reader] || '';
+  const next = order[(order.indexOf(prev) + 1) % order.length];
+  b[reader] = next; pill.dataset.s = next;              // mise à jour immédiate à l'écran
+  pill.setAttribute('aria-label', `${reader} : ${next || 'non renseigné'}`);
+  try {
+    const res = await call('setStatus', id, next);
+    if (res && res.leftPal) { S.myPal = S.myPal.filter(x => x !== id); render(); toast('Lu ! Le livre sort de ta PAL'); }
+  }
+  catch (err) { b[reader] = prev; render(); toast(err.message); }
+}
+
+async function removeBook(id) {
+  const b = S.books.find(x => x.id === id);
+  if (!confirm(`Retirer « ${b['Titre']} » de la bibliothèque ?`)) return;
+  try {
+    await call('deleteBook', id);
+    S.books = S.books.filter(x => x.id !== id); S.open = null; render();
+    toast('Livre retiré', { label: 'Annuler', run: async () => {
+      try { await call('restoreBook', id); S.books.push(b); render(); toast('Livre remis'); }
+      catch (err) { toast(err.message); }
+    }});
+  } catch (err) { toast(err.message); }
+}
+
+async function togglePal(id, on) {
+  const prev = S.myPal.slice();
+  S.myPal = S.myPal.filter(x => x !== id); if (on) S.myPal.push(id);
+  render();
+  try {
+    S.myPal = await call('setPal', id, on);
+    toast(on ? `Ajouté à ta PAL (n°${S.myPal.length})` : 'Retiré de ta PAL'); render();
+  } catch (err) { S.myPal = prev; render(); toast(err.message); }
+}
+
+async function movePal(id, dir) {
+  const list = S.myPal.slice(), i = list.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  const prev = S.myPal;
+  [list[i], list[j]] = [list[j], list[i]];
+  S.myPal = list; render();
+  try { await call('reorderPal', list); }
+  catch (err) { S.myPal = prev; render(); toast(err.message); }
+}
+
+async function saveComment(btn) {
+  const id = btn.dataset.save;
+  const ta = $('list').querySelector(`textarea[data-cid="${CSS.escape(id)}"]`);
+  const b = S.books.find(x => x.id === id);
+  btn.disabled = true;
+  try {
+    await call('setComment', id, ta.value);
+    b[cKey(S.me)] = ta.value.trim(); render(); toast('Commentaire enregistré');
+  } catch (err) { toast(err.message); btn.disabled = false; }
+}
+
+/* ---------- Formulaire ---------- */
+const FIELDS = ['Titre', 'Auteur·ice(s)', 'Type', 'Langue', 'Emplacement', 'Thème / genre', 'Éditeur / collection', 'Résumé', 'Remarque'];
+const field = name => $('form').querySelector(`[name="${name}"]`);
+
+function openForm(book) {
+  S.editing = book ? book.id : null;
+  $('formTitle').textContent = book ? 'Modifier le livre' : 'Ajouter un livre';
+  $('saveBtn').textContent = book ? 'Enregistrer' : 'Ajouter';
+  $('isbn').value = ''; $('isbnHint').textContent = '';
+  FIELDS.forEach(f => field(f).value = book ? (book[f] || '') : '');
+  if (!book) field('Langue').value = 'Français';
+  $('mineFields').hidden = !!book;
+  $('f-MyStatus').value = ''; $('f-MyComment').value = ''; $('f-MyPal').checked = false;
+  $('dlg').showModal();
+  (book ? field('Titre') : $('isbn')).focus();
+}
+$('addBtn').onclick = () => openForm(null);
+$('cancelBtn').onclick = () => $('dlg').close();
+
+$('isbnBtn').onclick = async () => {
+  $('isbnHint').textContent = 'Recherche…';
+  try {
+    const r = await call('lookupIsbn', $('isbn').value);
+    FIELDS.forEach(f => { if (r[f] && !field(f).value) field(f).value = r[f]; });
+    if (r['Titre']) field('Titre').value = r['Titre'];
+    $('isbnHint').textContent = `Trouvé sur ${r.source}. Vérifie et complète.`;
+  } catch (err) { $('isbnHint').textContent = err.message; }
+};
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const data = {}; FIELDS.forEach(f => data[f] = field(f).value.trim());
+  if (!data['Titre']) return field('Titre').focus();
+  $('saveBtn').disabled = true;
+  try {
+    if (S.editing) {
+      const upd = await call('updateBook', S.editing, data);
+      const i = S.books.findIndex(b => b.id === S.editing);
+      S.books[i] = Object.assign(upd, { _i: S.books[i]._i });
+      toast('Modifications enregistrées');
+    } else {
+      data[S.me] = $('f-MyStatus').value; data[cKey(S.me)] = $('f-MyComment').value.trim();
+      const created = await call('addBook', data);
+      created._i = S.books.length; S.books.push(created);
+      ['Type', 'Emplacement', 'Langue'].forEach((k, j) => {
+        const key = ['types', 'places', 'languages'][j];
+        if (created[k] && !S.options[key].includes(created[k])) S.options[key].push(created[k]);
+      });
+      toast(`« ${created['Titre']} » ajouté`);
+      if ($('f-MyPal').checked) {
+        S.myPal = await call('setPal', created.id, true);
+        toast(`« ${created['Titre']} » ajouté à ta PAL`);
+      }
+    }
+    $('dlg').close(); render();
+  } catch (err) { toast(err.message); }
+  finally { $('saveBtn').disabled = false; }
+});
+
+['q'].forEach(id => $(id).addEventListener('input', () => { clearTimeout(render.t); render.t = setTimeout(render, 120); }));
+['fPlace', 'fSort'].forEach(id => $(id).addEventListener('change', render));
+$('fRead').addEventListener('change', () => { savePrefs(); render(); });
+
+init();
+</script>
+</body>
+</html>
