@@ -177,6 +177,6 @@ create policy pal_mine on public.pal for all to authenticated
 -- Puis, dans Authentication → Users → « Add user » → « Send invitation » (ou « Create new user »),
 -- crée un compte pour chacune de ces adresses : les inscriptions libres sont désactivées.
 insert into public.readers (email, name, position) values
-  ('alice@gmail.com',  'Alice',  0),
-  ('sandra@gmail.com', 'Sandra', 1)
+  ('mariette.alice@gmail.com',  'Alice',  0),
+  ('sandragjacinto@gmail.com', 'Sandra', 1)
 on conflict (email) do nothing;

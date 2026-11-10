@@ -174,10 +174,10 @@
 <body>
 <section class="login" id="login" hidden>
   <h1>Notre bibliothèque</h1>
-  <p id="loginHelp">Entre ton adresse e-mail : tu vas recevoir un code à 6 chiffres.</p>
+  <p id="loginHelp">Entre ton adresse e-mail : tu vas recevoir un code.</p>
   <form id="loginForm">
     <input id="loginEmail" type="email" autocomplete="email" placeholder="ton@adresse.fr" aria-label="Adresse e-mail" required>
-    <input id="loginCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Code à 6 chiffres"
+    <input id="loginCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Code reçu par e-mail"
       aria-label="Code reçu par e-mail" hidden>
     <button class="btn primary" id="loginBtn">Recevoir un code</button>
   </form>
@@ -356,7 +356,7 @@ function showLogin() {
   $('login').hidden = false;
   $('loginCode').hidden = true; $('loginCode').value = '';
   $('loginBtn').textContent = 'Recevoir un code';
-  $('loginHelp').textContent = 'Entre ton adresse e-mail : tu vas recevoir un code à 6 chiffres.';
+  $('loginHelp').textContent = 'Entre ton adresse e-mail : tu vas recevoir un code.';
   $('loginEmail').focus();
 }
 $('loginForm').addEventListener('submit', async e => {

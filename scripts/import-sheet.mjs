@@ -3,8 +3,9 @@
  * Import unique de la Google Sheet vers Supabase.
  *
  * 1. Dans la Sheet : onglet « Bibliothèque » → Fichier → Télécharger → CSV.
- * 2. Dans Supabase : Project Settings → API → copie l'URL et la clé « service_role » (secrète !).
- * 3. SUPABASE_URL=https://xxx.supabase.co SUPABASE_SERVICE_KEY=eyJ… node scripts/import-sheet.mjs Bibliotheque.csv
+ * 2. Dans Supabase : Project Settings → API Keys → copie la clé secrète « sb_secret_… »
+ *    (ou, onglet Legacy API Keys, la clé « service_role » « eyJ… »). Pas la clé publishable / anon !
+ * 3. SUPABASE_URL=https://xxx.supabase.co SUPABASE_SERVICE_KEY=sb_secret_… node scripts/import-sheet.mjs Bibliotheque.csv
  *
  * Peut être relancé sans danger : les livres sont mis à jour par ID, rien n'est dupliqué.
  * Ne commite jamais la clé service_role.
@@ -25,6 +26,20 @@ const KEY = process.env.SUPABASE_SERVICE_KEY;
 if (!file || !URL_ || !KEY) {
   console.error('Usage : SUPABASE_URL=… SUPABASE_SERVICE_KEY=… node scripts/import-sheet.mjs Bibliotheque.csv');
   process.exit(1);
+}
+if (isPublicKey(KEY)) {
+  console.error('❌ C\'est la clé publique (publishable / anon). Il faut la clé secrète : Supabase → Project Settings → '
+    + 'API Keys → Secret keys (« sb_secret_… »), ou l\'onglet Legacy API Keys → service_role.');
+  process.exit(1);
+}
+
+/** Vrai pour une clé publishable, ou une ancienne clé JWT dont le rôle n'est pas service_role. */
+function isPublicKey(key) {
+  if (key.startsWith('sb_publishable_')) return true;
+  const parts = key.split('.');
+  if (parts.length !== 3) return false;
+  try { return JSON.parse(Buffer.from(parts[1], 'base64url').toString()).role !== 'service_role'; }
+  catch { return false; }
 }
 
 /** Lecteur CSV (guillemets, retours à la ligne dans les cellules). */

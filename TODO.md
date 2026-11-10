@@ -22,17 +22,25 @@ The README has more detail in French for each part.
 - [ ] **Authentication → Sign In / Providers**: keep **Email** on, and turn **off** "Allow new users to sign up".
 - [ ] **Authentication → Users → Add user → Create new user**: create Alice's account, with **"Auto Confirm User" ticked** and any long random password (it is never used).
 - [ ] Do the same for Sandra's account.
-- [ ] **Authentication → Emails → Templates → Magic Link**: replace the content with:
+- [ ] **Set up your own e-mail sending (SMTP).** Supabase's built-in sender won't let you edit the e-mail templates, only sends to members of your Supabase team (so Alice would get nothing), and sends only a few e-mails per hour. Gmail can send them for free:
+  1. On the Google account that will send the codes (yours), turn on **2-Step Verification**.
+  2. Go to <https://myaccount.google.com/apppasswords>, create an app password named `Supabase`, and copy the 16 letters (without spaces).
+  3. In Supabase: **Authentication → Emails → SMTP Settings**, turn on **Enable custom SMTP** and fill in:
+     - Sender email: your Gmail address. Sender name: `Notre bibliothèque`
+     - Host: `smtp.gmail.com`. Port: `465`
+     - Username: your Gmail address. Password: the app password
+  4. Save.
+- [ ] **Authentication → Emails → Templates → Magic Link**: set the subject to `Ton code pour la bibliothèque`, then in the **Source** tab of the body (you can edit it now that SMTP is set up) replace the content with:
   ```html
   <h2>Ton code pour la bibliothèque</h2>
   <p style="font-size:28px;letter-spacing:4px"><b>{{ .Token }}</b></p>
   <p>Il est valable quelques minutes.</p>
   ```
-  Save. Without `{{ .Token }}`, nobody can log in.
-- [ ] **Project Settings → API**: copy these three values somewhere private for the next steps:
-  - the **Project URL** (`https://xxxx.supabase.co`)
-  - the **anon / publishable** key (public)
-  - the **service_role** key (**secret**; only used in step 3, never paste it in a file of the repo)
+  Save. Without `{{ .Token }}`, nobody can log in. You'll test that the code arrives in step 4. If it doesn't, look in the spam folder.
+- [ ] **Project Settings → API Keys**: copy these three values somewhere private for the next steps:
+  - the **Project URL** (`https://xxxx.supabase.co`, shown under **Project Settings → Data API** or on the project home page)
+  - the **publishable** key `sb_publishable_…` (public; the Legacy API Keys tab calls it **anon**, `eyJ…`)
+  - the **secret** key `sb_secret_…` (click Reveal; the Legacy tab calls it **service_role**). Only used in step 3, never paste it in a file of the repo. Don't mix it up with the publishable key: the import fails with "permission denied" if you do.
 
 ## 2. Update the Google Script app
 
@@ -63,7 +71,7 @@ This must come **after** `setup()`, because the import needs the `ID` column.
 ## 4. Publish the new Google Script app
 
 - [ ] In Apps Script: **Deploy → Manage deployments → pencil ✏️ → Version: New version → Deploy**. The `/exec` URL stays the same.
-- [ ] **Sandra:** open the app. A banner offers to link your account: tap "Recevoir un code par e-mail", then type the 6-digit code. Your old PAL is copied over automatically.
+- [ ] **Sandra:** open the app. A banner offers to link your account: tap "Recevoir un code par e-mail", then type the code you receive by e-mail. Your old PAL is copied over automatically.
 - [ ] **Alice:** do the same on her side, with her own Google account.
 - [ ] **Sheet owner** (after linking her own account): back in the Apps Script editor, select **installSync** and click **Run**. The Sheet will now update every 5 minutes.
 

@@ -42,7 +42,7 @@ export async function sendCode(email) {
 
 export async function verifyCode(email, code) {
   const token = String(code || '').replace(/\D/g, '');
-  if (token.length !== 6) throw new Error('Le code fait 6 chiffres.');
+  if (token.length < 6 || token.length > 10) throw new Error('Tape le code reçu par e-mail (6 à 10 chiffres).');
   const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
   if (error) throw new Error(/expired|invalid/i.test(error.message) ? 'Code incorrect ou expiré.' : frMessage(error));
 }

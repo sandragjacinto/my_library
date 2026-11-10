@@ -9,7 +9,7 @@ Il y a **deux apps qui montrent les mêmes données** :
 | Appareils | téléphone **et ordinateur** (Mac, Ubuntu) | tout navigateur |
 | Adresse | `https://<compte>.github.io/my_library/` | l'URL `/exec` de toujours |
 | Scanner le code-barres | ✅ | ❌ (pas d'accès à la caméra) |
-| Connexion | code à 6 chiffres reçu par e-mail | compte Google, relié une fois à la base |
+| Connexion | code reçu par e-mail | compte Google, relié une fois à la base |
 | Vitesse | instantané | ~1 s par modification |
 
 Tout ce que tu fais dans l'une apparaît dans l'autre.
@@ -52,14 +52,18 @@ Tout ce que tu fais dans l'une apparaît dans l'autre.
 3. Dans Supabase : **SQL Editor → New query**, colle tout le fichier et clique sur **Run**.
 4. **Authentication → Sign In / Providers** : laisse **Email** activé, et **désactive « Allow new users to sign up »** (seules vos deux adresses pourront se connecter).
 5. **Authentication → Users → Add user → Create new user** : crée un compte pour chacune des deux adresses, avec **« Auto Confirm User » coché**. Le mot de passe ne servira jamais : mets-en un long au hasard.
-6. **Authentication → Emails → Templates → Magic Link** : remplace le contenu par un message qui contient le code, par exemple :
+6. **Envoi des e-mails (SMTP)** : l'envoi intégré de Supabase ne permet pas de modifier les modèles d'e-mail, n'écrit qu'aux membres de l'équipe Supabase (Alice ne recevrait rien) et n'envoie que quelques e-mails par heure. On passe donc par Gmail, gratuitement :
+   - sur le compte Google qui enverra les codes, active la **validation en deux étapes** ;
+   - sur <https://myaccount.google.com/apppasswords>, crée un mot de passe d'application `Supabase` et copie les 16 lettres (sans espaces) ;
+   - dans Supabase, **Authentication → Emails → SMTP Settings** : active **Enable custom SMTP**. Sender email et Username : ton adresse Gmail ; Sender name : `Notre bibliothèque` ; Host : `smtp.gmail.com` ; Port : `465` ; Password : le mot de passe d'application. Enregistre.
+7. **Authentication → Emails → Templates → Magic Link** (modifiable une fois le SMTP configuré) : mets comme sujet `Ton code pour la bibliothèque`, puis dans l'onglet **Source** remplace le contenu par un message qui contient le code, par exemple :
    ```html
    <h2>Ton code pour la bibliothèque</h2>
    <p style="font-size:28px;letter-spacing:4px"><b>{{ .Token }}</b></p>
    <p>Il est valable quelques minutes.</p>
    ```
    On se connecte avec ce code plutôt qu'avec un lien, parce que sur iPhone un lien s'ouvrirait dans Safari et pas dans l'app installée.
-7. **Project Settings → API** : note l'**URL du projet**, la clé **anon / publishable** (publique) et la clé **service_role** (secrète, elle ne sert qu'à l'import de l'étape 3).
+8. **Project Settings → API Keys** : note l'**URL du projet**, la clé **publishable** `sb_publishable_…` (publique ; « anon » dans l'onglet Legacy) et la clé **secrète** `sb_secret_…` (bouton Reveal ; « service_role » dans l'onglet Legacy). La clé secrète ne sert qu'à l'import de l'étape 3.
 
 ### 2. App Google Script (et préparation de la Sheet)
 

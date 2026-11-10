@@ -289,7 +289,7 @@ function linkBanner() {
   return `<div class="readonly">Bonjour ${esc(S.link)} ! Pour modifier depuis cette app, relie-la une fois à la base partagée avec l'app mobile.
     <div class="row-actions" style="margin-top:8px;flex-wrap:wrap">
       <button class="btn" id="linkSend" type="button">Recevoir un code par e-mail</button>
-      <input id="linkCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Code à 6 chiffres"
+      <input id="linkCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Code reçu par e-mail"
         aria-label="Code reçu par e-mail" hidden style="width:10em;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-s)">
       <button class="btn primary" id="linkOk" type="button" hidden>Valider</button>
     </div></div>`;

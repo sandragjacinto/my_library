@@ -1,7 +1,7 @@
 /**
  * Accès à Supabase depuis l'app Google Script, AU NOM de la lectrice connectée.
  *
- * Chacune « relie » une fois son compte : elle reçoit un code à 6 chiffres par e-mail, et la session
+ * Chacune « relie » une fois son compte : elle reçoit un code par e-mail, et la session
  * Supabase obtenue est rangée dans SES propriétés utilisateur (privées, même pour la propriétaire du script).
  * Les règles de sécurité (RLS) de Supabase s'appliquent donc exactement comme dans la PWA.
  *
@@ -36,7 +36,7 @@ function sbSaveSession_(s) {
 
 function sbLinked_() { return !!sbSession_(); }
 
-/** Interface : envoie un code à 6 chiffres à l'adresse du compte Google connecté. */
+/** Interface : envoie un code à l'adresse du compte Google connecté. */
 function sendLinkCode() {
   if (!currentReader_()) throw new Error('Ton compte Google n\'est pas dans CONFIG.EMAILS.');
   const email = currentEmail_();
@@ -47,7 +47,7 @@ function sendLinkCode() {
 /** Interface : vérifie le code reçu et enregistre la session. */
 function verifyLinkCode(code) {
   const token = String(code || '').replace(/\D/g, '');
-  if (token.length !== 6) throw new Error('Le code fait 6 chiffres.');
+  if (token.length < 6 || token.length > 10) throw new Error('Tape le code reçu par e-mail (6 à 10 chiffres).');
   const s = sbAuth_('verify', { type: 'email', email: currentEmail_(), token });
   if (!s.access_token) throw new Error('Code refusé.');
   sbSaveSession_(s);

@@ -3,7 +3,7 @@
  * Les données (Supabase) et les recherches ISBN ne passent jamais par ce cache.
  * Après une modification des fichiers de web/, augmente VERSION pour que les téléphones prennent la nouvelle version.
  */
-const VERSION = 'biblio-v2';
+const VERSION = 'biblio-v3';
 const SHELL = ['./', 'index.html', 'api.js', 'isbn.js', 'scanner.js', 'config.js', 'manifest.webmanifest',
                'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
