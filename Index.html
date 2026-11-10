@@ -274,13 +274,47 @@ async function init() {
     S.books.forEach((b, i) => b._i = i);
     $('who').innerHTML = S.me
       ? `Connectée : <b style="--me:${readerColor(S.me)}">${esc(S.me)}</b>`
+      : S.link ? linkBanner()
       : `<div class="readonly">Ton compte (${esc(S.email || 'inconnu')}) n'est pas dans la liste : tu peux consulter, mais pas modifier.</div>`;
-    if (!S.me) $('addBtn').hidden = true;
+    if (S.warning) $('who').innerHTML += `<div class="readonly">${esc(S.warning)}</div>`;
+    $('addBtn').hidden = !S.me;
     buildFilters(); render();
   } catch (e) {
     $('list').innerHTML = `<div class="empty">Impossible de lire la feuille : ${esc(e.message)}<br>Vérifie que tu as accès à la Google Sheet, puis recharge.</div>`;
   }
 }
+
+/* ---------- Relier son compte à la base (une seule fois) ---------- */
+function linkBanner() {
+  return `<div class="readonly">Bonjour ${esc(S.link)} ! Pour modifier depuis cette app, relie-la une fois à la base partagée avec l'app mobile.
+    <div class="row-actions" style="margin-top:8px;flex-wrap:wrap">
+      <button class="btn" id="linkSend" type="button">Recevoir un code par e-mail</button>
+      <input id="linkCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Code à 6 chiffres"
+        aria-label="Code reçu par e-mail" hidden style="width:10em;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-s)">
+      <button class="btn primary" id="linkOk" type="button" hidden>Valider</button>
+    </div></div>`;
+}
+$('who').addEventListener('click', async e => {
+  if (e.target.id === 'linkSend') {
+    e.target.disabled = true;
+    try {
+      const email = await call('sendLinkCode');
+      $('linkCode').hidden = $('linkOk').hidden = false; $('linkCode').focus();
+      e.target.textContent = 'Renvoyer le code';
+      toast(`Code envoyé à ${email}`);
+    } catch (err) { toast(err.message); }
+    finally { e.target.disabled = false; }
+  }
+  if (e.target.id === 'linkOk') {
+    e.target.disabled = true;
+    try {
+      await call('verifyLinkCode', $('linkCode').value);
+      toast('Compte relié !');
+      $('list').innerHTML = '<div class="loading">Chargement des livres…</div>';
+      await init();
+    } catch (err) { toast(err.message); e.target.disabled = false; }
+  }
+});
 
 function buildFilters() {
   const opt = (v, l) => `<option value="${esc(v)}">${esc(l)}</option>`;
@@ -406,7 +440,7 @@ function bookHtml(b) {
   }).join('');
   const open = S.open === b.id;
   const dl = [['Thème', b['Thème / genre']], ['Langue', b['Langue']], ['Éditeur', b['Éditeur / collection']],
-              ['Remarque', b['Remarque']]].filter(([, v]) => clean(v))
+              ['ISBN', b['ISBN']], ['Remarque', b['Remarque']]].filter(([, v]) => clean(v))
               .map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
   return `<article class="book${open ? ' open' : ''}" style="--c:${TYPE_COLORS[b['Type']] || 'var(--oak)'}">
     <div class="spine"></div>
@@ -548,7 +582,7 @@ function openForm(book) {
   S.editing = book ? book.id : null;
   $('formTitle').textContent = book ? 'Modifier le livre' : 'Ajouter un livre';
   $('saveBtn').textContent = book ? 'Enregistrer' : 'Ajouter';
-  $('isbn').value = ''; $('isbnHint').textContent = '';
+  $('isbn').value = book ? (book['ISBN'] || '') : ''; $('isbnHint').textContent = '';
   FIELDS.forEach(f => field(f).value = book ? (book[f] || '') : '');
   if (!book) field('Langue').value = 'Français';
   $('mineFields').hidden = !!book;
@@ -572,6 +606,7 @@ $('isbnBtn').onclick = async () => {
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
   const data = {}; FIELDS.forEach(f => data[f] = field(f).value.trim());
+  data['ISBN'] = $('isbn').value.replace(/[^0-9Xx]/g, '').toUpperCase();
   if (!data['Titre']) return field('Titre').focus();
   $('saveBtn').disabled = true;
   try {

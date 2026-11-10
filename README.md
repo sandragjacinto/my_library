@@ -1,41 +1,105 @@
-# Notre bibliothèque — web app Google Apps Script
+# Notre bibliothèque — deux apps, une seule base
 
-Petite app mobile pour chercher un livre, changer le statut de lecture d'Alice et de Sandra, et ajouter ou modifier des livres.
-La Google Sheet reste la source de vérité : tout ce que vous faites dans l'app y est écrit directement.
+Petite bibliothèque partagée : chercher un livre, noter si Alice ou Sandra l'a lu, le commenter, gérer sa pile à lire, ajouter ou modifier des livres.
+
+Il y a **deux apps qui montrent les mêmes données** :
+
+| | App mobile (PWA) | App Google Script |
+|---|---|---|
+| Appareils | téléphone **et ordinateur** (Mac, Ubuntu) | tout navigateur |
+| Adresse | `https://<compte>.github.io/my_library/` | l'URL `/exec` de toujours |
+| Scanner le code-barres | ✅ | ❌ (pas d'accès à la caméra) |
+| Connexion | code à 6 chiffres reçu par e-mail | compte Google, relié une fois à la base |
+| Vitesse | instantané | ~1 s par modification |
+
+Tout ce que tu fais dans l'une apparaît dans l'autre.
+
+## Comment c'est organisé
+
+```
+   App mobile (web/)  ──┐
+                        ├──►  Supabase (la base, source de vérité)
+   App Google Script ───┘            │
+           ▲                         │ synchro (à l'ouverture, après chaque modif, toutes les 5 min)
+           └──── Google Sheet ◄──────┘  (miroir en lecture)
+```
+
+- **Supabase** contient les livres, les statuts, les commentaires et les PAL. Les deux apps y écrivent directement.
+- **La Google Sheet est un miroir.** L'app Google Script la met à jour depuis Supabase et l'affiche. On peut toujours la consulter, la trier, l'exporter… mais **une modification faite à la main dans la Sheet n'est pas synchronisée** (et sera écrasée la prochaine fois que ce livre changera). Un avertissement s'affiche si on essaie.
 
 ## Fonctionnalités
 
-- Recherche instantanée (titre, auteur·ice, thème, éditeur), sans tenir compte des accents.
+- Recherche instantanée (titre, auteur·ice, thème, éditeur, commentaires), sans tenir compte des accents.
 - **Filtre par types à cocher :** on décoche ce qu'on ne veut pas voir (par exemple *Cuisine*), et le bouton affiche « Sans Cuisine ».
-- **Filtre de lecture :** *Pas encore lu par moi* (statut vide ou « pas lu ») et *Lu par moi* en tête de liste, puis les options pour l'autre lectrice, « lu par les deux », « lu par aucune » et « avec commentaire ».
-- Les types décochés et le filtre de lecture sont **mémorisés sur chaque téléphone** : chacune retrouve ses réglages à la prochaine ouverture.
-- Filtre par emplacement.
-- **Une PAL (pile à lire) privée pour chacune :** dans la fiche d'un livre, « 📚 Ajouter à ma PAL » le met en bas de ta pile. L'onglet **Ma PAL** affiche ta pile numérotée, avec ↑ ↓ pour changer l'ordre et « Retirer ». Personne d'autre ne la voit, ni dans l'app ni dans la Sheet. Un livre marqué « lu » sort tout seul de ta PAL (réglage `PAL_REMOVE_WHEN_READ`). On peut aussi cocher « Ajouter à ma PAL » au moment d'ajouter un nouveau livre.
-- Tri par nom de famille de l'auteur·ice, par titre ou par ajout récent.
-- Une pastille par lectrice : chacune ne peut toucher que **la sienne** (vide → lu → pas lu → vide). Celle de l'autre est visible mais verrouillée.
-- **Un commentaire par lectrice** sur chaque livre : on écrit le sien, on lit celui de l'autre. Les commentaires sont pris en compte dans la recherche, et un filtre « Avec commentaire » permet de les retrouver.
-- **Droits par personne :** l'app reconnaît qui est connectée grâce à son compte Google. Le serveur refuse toute écriture dans les colonnes de l'autre, et `setup()` protège en plus ces colonnes dans la Sheet elle-même.
-- Ajout d'un livre avec remplissage automatique par ISBN (Open Library, puis Google Books en secours).
-- Fiche détaillée au tap sur un livre. Les infos communes (titre, auteur·ice, emplacement…) restent modifiables par les deux, et le bouton « Retirer » est annulable.
-- Mode sombre automatique, pensé pour le téléphone.
+- **Filtre de lecture :** *Pas encore lu par moi* et *Lu par moi* en tête, puis l'autre lectrice, « lu par les deux », « lu par aucune » et « avec commentaire ».
+- Les types décochés et le filtre de lecture sont **mémorisés sur chaque téléphone**.
+- Filtre par emplacement ; tri par nom de famille de l'auteur·ice, par titre ou par ajout récent.
+- Une pastille par lectrice : chacune ne peut toucher que **la sienne** (vide → lu → pas lu → vide).
+- **Un commentaire par lectrice** sur chaque livre.
+- **Une PAL (pile à lire) privée pour chacune**, la même dans les deux apps : « 📚 Ajouter à ma PAL », onglet **Ma PAL** avec ↑ ↓ et « Retirer ». Un livre marqué « lu » sort tout seul de ta PAL.
+- **Scan du code-barres (app mobile) :** dans « Ajouter un livre », touche 📷 et vise le code-barres au dos. L'ISBN est lu, puis le titre, l'auteur·ice et l'éditeur sont remplis automatiquement (Open Library, puis Google Books en secours). Si le livre est **déjà dans la bibliothèque**, l'app te le dit et te propose de l'ouvrir : pratique en librairie !
+- L'ISBN est maintenant enregistré (colonne `ISBN`).
+- Fiche détaillée au tap sur un livre ; infos communes modifiables par les deux ; « Retirer » est annulable.
+- Mode sombre automatique, pensé pour le téléphone. L'app mobile s'installe sur l'écran d'accueil, et aussi **sur l'ordinateur** (Mac, Ubuntu) comme une vraie app, avec sa fenêtre et son icône.
+- **Raccourcis clavier (ordinateur) :** `/` ou `Ctrl+K` (`⌘K` sur Mac) pour chercher, `N` pour ajouter un livre, `Échap` pour effacer la recherche. Clic droit sur l'icône de l'app installée → « Ajouter un livre ».
 
-## Installation (10 minutes)
+## Installation (environ 45 minutes, une seule fois)
 
-1. Ouvre la Google Sheet et vérifie que l'onglet s'appelle bien **Bibliothèque**. Les en-têtes doivent être ceux du fichier : `Titre`, `Auteur·ice(s)`, `Type`, `Thème / genre`, `Langue`, `Éditeur / collection`, `Photo`, `Remarque`, `Résumé`, `Emplacement`, `Alice`, `Sandra`.
-2. Va dans **Extensions → Apps Script**.
-3. Remplace le contenu de `Code.gs` par celui de ce dossier.
-4. Crée un fichier HTML nommé exactement **Index** (bouton **+** puis **HTML**), et colles-y `Index.html`.
-5. **Obligatoire :** dans `CONFIG.EMAILS`, remplace les deux adresses d'exemple par vos vraies adresses Google. C'est ce qui détermine qui peut modifier quoi. Une adresse absente de la liste ouvre l'app en lecture seule.
-6. Sélectionne la fonction **setup** dans la barre du haut et clique sur **Exécuter**, puis accepte les autorisations. Cette fonction :
-   - ajoute les colonnes manquantes : `ID`, `Commentaire Alice`, `Commentaire Sandra`, `Retiré`, `Ajouté par` ;
-   - attribue un identifiant unique à chaque livre (certains titres existent en double) ;
-   - protège les colonnes `Alice` et `Commentaire Alice` pour Alice seule, et celles de Sandra pour Sandra seule.
-7. Clique sur **Déployer → Nouveau déploiement → Application Web** :
-   - *Exécuter en tant que* : **Utilisateur accédant à l'application Web**
-   - *Qui a accès* : **Tous les utilisateurs disposant d'un compte Google**
-8. Copie l'URL `/exec` et envoie-la à ta conjointe. Sur le téléphone, ouvrez-la puis faites « Ajouter à l'écran d'accueil ».
+### 1. Supabase (la base)
 
-Avec ce réglage, chacune agit avec son propre compte Google. Seules les personnes qui ont accès à la Sheet peuvent lire ou modifier les données, les autres voient une erreur.
+1. Crée un compte sur [supabase.com](https://supabase.com) puis un projet (région : Europe, par exemple *Paris* ou *Frankfurt*).
+2. Ouvre `supabase/schema.sql`. Tout en bas, **remplace les deux adresses** par vos vraies adresses e-mail (en minuscules). Les noms doivent être exactement ceux des colonnes de la Sheet (`Alice`, `Sandra`).
+3. Dans Supabase : **SQL Editor → New query**, colle tout le fichier et clique sur **Run**.
+4. **Authentication → Sign In / Providers** : laisse **Email** activé, et **désactive « Allow new users to sign up »** (seules vos deux adresses pourront se connecter).
+5. **Authentication → Users → Add user → Create new user** : crée un compte pour chacune des deux adresses, avec **« Auto Confirm User » coché**. Le mot de passe ne servira jamais : mets-en un long au hasard.
+6. **Authentication → Emails → Templates → Magic Link** : remplace le contenu par un message qui contient le code, par exemple :
+   ```html
+   <h2>Ton code pour la bibliothèque</h2>
+   <p style="font-size:28px;letter-spacing:4px"><b>{{ .Token }}</b></p>
+   <p>Il est valable quelques minutes.</p>
+   ```
+   On se connecte avec ce code plutôt qu'avec un lien, parce que sur iPhone un lien s'ouvrirait dans Safari et pas dans l'app installée.
+7. **Project Settings → API** : note l'**URL du projet**, la clé **anon / publishable** (publique) et la clé **service_role** (secrète, elle ne sert qu'à l'import de l'étape 3).
+
+### 2. App Google Script (et préparation de la Sheet)
+
+1. Dans la Google Sheet : **Extensions → Apps Script**.
+2. Remplace `Code.gs` et `Index` par ceux de ce dossier, et crée deux nouveaux fichiers de script **Supabase** et **Sync** (bouton **+** puis **Script**) avec le contenu de `Supabase.gs` et `Sync.gs`. (Ou utilise `clasp push` : `.claspignore` n'envoie que ces fichiers.)
+3. Dans `CONFIG.EMAILS`, mets vos vraies adresses Google (les mêmes que dans Supabase).
+4. **Paramètres du projet (⚙️) → Propriétés du script** : ajoute `SUPABASE_URL` (l'URL du projet) et `SUPABASE_ANON_KEY` (la clé anon, **pas** la clé service_role).
+5. Sélectionne la fonction **setup** et clique sur **Exécuter** (accepte les autorisations). Elle :
+   - ajoute les colonnes manquantes (`ID`, `ISBN`, `Retiré`, `Ajouté par`, commentaires…) ;
+   - donne un identifiant unique à chaque livre ;
+   - remplace les anciennes protections par colonne par un **avertissement** sur tout l'onglet. C'est maintenant Supabase qui fait respecter les droits.
+
+### 3. Importer les livres dans Supabase
+
+1. Dans la Sheet, onglet **Bibliothèque** : **Fichier → Télécharger → Valeurs séparées par des virgules (.csv)**.
+2. Sur ton ordinateur (Node 18 ou plus) :
+   ```sh
+   SUPABASE_URL=https://xxxx.supabase.co SUPABASE_SERVICE_KEY=eyJ... node scripts/import-sheet.mjs ~/Téléchargements/Bibliotheque.csv
+   ```
+   Le script affiche le nombre de livres importés et signale les statuts qu'il n'a pas compris. On peut le relancer sans créer de doublons. **Ne commite jamais la clé service_role.**
+
+### 4. Mettre en ligne la nouvelle app Google Script
+
+1. **Déployer → Gérer les déploiements → crayon → Version : Nouvelle version.** L'URL `/exec` ne change pas.
+2. Chacune ouvre l'app : un bandeau propose de **relier son compte à la base**. Touche « Recevoir un code par e-mail », puis tape le code. C'est à faire une seule fois. Ta PAL de l'ancienne version est alors copiée automatiquement dans la base, dans le même ordre.
+3. La propriétaire de la Sheet, **après avoir relié son compte**, retourne dans l'éditeur et lance **installSync** : la Sheet sera mise à jour toutes les 5 minutes, même quand personne n'ouvre l'app.
+
+### 5. Mettre en ligne l'app mobile
+
+1. Dans `web/config.js`, mets l'URL du projet et la clé **anon** (elles sont publiques par nature, les règles de la base protègent les données).
+2. Sur GitHub : **Settings → Pages → Source : GitHub Actions**. Puis pousse sur `main` : l'app est publiée sur `https://<compte>.github.io/my_library/`.
+   - GitHub Pages sur un dépôt **privé** demande un abonnement payant. Le dépôt ne contient aucun secret : tu peux le rendre public, ou héberger le dossier `web/` ailleurs (Cloudflare Pages, Netlify…).
+3. Sur chaque téléphone :
+   - **iPhone :** ouvre l'adresse dans Safari, **Partager → Sur l'écran d'accueil**, puis ouvre l'app depuis l'écran d'accueil et **connecte-toi là** (l'app installée et Safari ne partagent pas la connexion).
+   - **Android :** ouvre l'adresse dans Chrome, connecte-toi, puis **⋮ → Installer l'application**.
+4. Sur chaque ordinateur :
+   - **Chrome, Chromium ou Edge (Mac et Ubuntu) :** ouvre l'adresse, puis clique sur l'icône d'installation à droite de la barre d'adresse (ou **⋮ → Caster, enregistrer et partager → Installer la page en tant qu'application**). L'app apparaît dans le Dock (Mac) ou dans la liste des applications (Ubuntu) ; tu peux l'y épingler.
+   - **Safari sur Mac (macOS 14 ou plus) :** **Fichier → Ajouter au Dock**, puis ouvre l'app depuis le Dock et **connecte-toi là** (comme sur iPhone, la connexion n'est pas partagée avec Safari).
+   - **Ubuntu :** utilise Chrome ou Chromium. Firefox ne sait pas installer les apps web, mais l'adresse marche très bien dans un onglet normal.
+   - Le scan marche aussi avec la webcam (tiens le code-barres face à la caméra), mais taper l'ISBN est souvent plus simple sur ordinateur.
 
 ## Les droits, en détail
 
@@ -47,30 +111,33 @@ Avec ce réglage, chacune agit avec son propre compte Google. Seules les personn
 | PAL de Sandra | 🚫 invisible | ✏️ |
 | Infos communes, ajout, retrait | ✏️ | ✏️ |
 
-- La protection est double : le serveur vérifie qui est connectée avant chaque écriture, et la Sheet refuse les modifications dans les colonnes protégées.
-- **Une limite :** la **propriétaire** du fichier Google peut toujours tout modifier directement dans la Sheet, c'est une règle de Google. Dans l'app, elle reste limitée à ses propres colonnes.
-- Pour rendre les infos communes non modifiables, mets `SHARED_EDIT: false`.
-- **« Retirer » n'efface pas la ligne :** une suppression échouerait, puisque la ligne contient les colonnes protégées de l'autre. Le livre est marqué `Retiré = oui` et disparaît de l'app. Pour le remettre, efface ce « oui » dans la Sheet ou utilise « Annuler » juste après le retrait.
+- Les règles sont dans la base (**Row Level Security** de Supabase, voir `supabase/schema.sql`). Elles s'appliquent pareil aux deux apps : l'app Google Script parle à la base au nom de la personne connectée. Elle vérifie en plus qui est connectée avant chaque écriture.
+- Une adresse qui n'est pas dans la table `readers` ne peut pas se connecter à l'app mobile. Dans l'app Google Script, elle voit les livres en lecture seule.
+- **« Retirer » n'efface rien :** le livre est marqué `Retiré` et disparaît des apps. Pour le remettre, utilise « Annuler » juste après, ou mets `removed` à `false` dans Supabase (**Table Editor → books**).
+- **Une limite :** la propriétaire du **projet Supabase** voit tout dans le tableau de bord de Supabase, PAL comprises. Dans les apps, elle reste limitée à ses propres colonnes.
 
-## Mettre à jour l'app
+## Mettre à jour les apps
 
-Après une modification du code : **Déployer → Gérer les déploiements → crayon → Version : Nouvelle version**. L'URL ne change pas.
-Pour tester sans redéployer, utilise l'URL `/dev` donnée par **Déployer → Tester les déploiements**.
+- **App Google Script :** après une modification du code, **Déployer → Gérer les déploiements → crayon → Nouvelle version**. Pour tester sans redéployer, utilise l'URL `/dev` (**Déployer → Tester les déploiements**).
+- **App mobile :** pousse sur `main`, GitHub la republie en une minute. Augmente `VERSION` dans `web/sw.js` pour que les téléphones prennent tout de suite la nouvelle version.
+- **Tester l'app mobile sur l'ordinateur :** `python3 -m http.server -d web 8000` puis ouvre `http://localhost:8000`. La caméra ne fonctionne qu'en `localhost` ou en HTTPS.
+- **Base :** `supabase/schema.sql` peut être relancé sans danger après une modification.
 
 ## Bon à savoir
 
-- **Onglets « Zone » de l'Excel :** ce sont des listes figées au moment de l'export. Les livres ajoutés depuis l'app n'y apparaissent pas, et supprimer une ligne casse leurs formules. Dans l'app, le filtre **Emplacement** les remplace. Tu peux supprimer ces onglets dans la Sheet.
-- **Écritures simultanées :** `LockService` met les écritures en file d'attente, il n'y a donc pas de conflit si vous modifiez en même temps.
-- **Vitesse :** chaque écriture prend environ 1 seconde, mais l'interface n'attend pas pour les statuts de lecture.
-- **Liste déroulante lu / pas lu :** elle couvre les lignes existantes. Pour les nouvelles lignes, étends la validation des données à toute la colonne (`K2:L`).
-- **Ajouter une lectrice :** ajoute son prénom dans `CONFIG.READERS` et son adresse dans `CONFIG.EMAILS`, puis relance `setup()` pour créer ses colonnes et leur protection.
-- **Mettre à jour vers une nouvelle version (commentaires, PAL…) :** colle les deux nouveaux fichiers, relance `setup()` pour créer et protéger les nouvelles colonnes, puis crée une **nouvelle version** du déploiement.
-- **Où est stockée la PAL :** pas dans la Sheet, mais dans les *propriétés utilisateur* du script (`PropertiesService.getUserProperties()`). Comme l'app s'exécute avec le compte de la personne connectée, chacune n'a accès qu'à sa propre PAL, même la propriétaire du script ou de la Sheet.
-- **Si vous aviez déjà des colonnes `PAL Alice` / `PAL Sandra` (version précédente) :** à sa première ouverture de la nouvelle version, chacune voit sa PAL copiée automatiquement en privé, et sa colonne vidée. Une fois que vous avez ouvert l'app toutes les deux, supprime ces deux colonnes de la Sheet.
-- **Limite :** une PAL n'existe que dans ce script. Si tu recrées le projet Apps Script, elles repartent à zéro.
+- **Délai de la Sheet :** l'app Google Script est toujours à jour (elle synchronise à l'ouverture). La Sheet elle-même peut avoir jusqu'à 5 minutes de retard sur l'app mobile.
+- **Modifications en même temps :** chaque modification touche un seul champ, donc il n'y a pas de conflit. Si vous modifiez le même champ du même livre au même moment, la dernière modification gagne.
+- **Synchro complète :** si la Sheet semble décalée, lance **resetSync** dans l'éditeur Apps Script : toute la Sheet est recomparée avec la base.
+- **« La base est injoignable » :** l'app Google Script affiche alors la Sheet en lecture seule. Vérifie les propriétés du script et que le projet Supabase n'est pas en pause.
+- **Projet Supabase gratuit :** il se met en pause après une semaine sans activité. La synchro toutes les 5 minutes le garde actif ; si besoin, relance-le depuis le tableau de bord.
+- **E-mails de connexion :** le service d'e-mail intégré de Supabase est limité à quelques envois par heure, c'est suffisant pour deux personnes. Une fois connectée, on le reste.
+- **« Ta connexion à la base a expiré » (app Google Script) :** recharge l'app et relie de nouveau ton compte.
+- **Onglets « Zone » de l'Excel :** ce sont des listes figées. Le filtre **Emplacement** les remplace ; tu peux les supprimer.
+- **Ajouter une lectrice :** ajoute une ligne dans la table `readers` (Supabase), crée son compte (**Authentication → Users**), ajoute son prénom dans `CONFIG.READERS` et son adresse dans `CONFIG.EMAILS`, puis relance `setup()` pour créer ses colonnes dans la Sheet.
+- **Anciennes colonnes `PAL Alice` / `PAL Sandra` :** elles ne servent plus et sont masquées dans les apps, tu peux les supprimer de la Sheet.
 
 ## Pistes pour la suite
 
-- **Scan du code-barres :** l'iframe d'Apps Script n'a pas accès à la caméra. C'est le bon moment pour passer à une PWA (Supabase ou Firebase + ZXing) en important le CSV de la Sheet.
-- **Couvertures :** `https://covers.openlibrary.org/b/isbn/<ISBN>-M.jpg`, à condition de stocker l'ISBN dans une nouvelle colonne.
-- **Historique :** une colonne de date de lecture par lectrice, remplie automatiquement quand le statut passe à « lu ».
+- **Couvertures :** l'ISBN est maintenant enregistré, il suffit d'afficher `https://covers.openlibrary.org/b/isbn/<ISBN>-M.jpg` dans la fiche.
+- **Historique :** une date de lecture par lectrice, remplie automatiquement quand le statut passe à « lu » (un trigger dans `schema.sql`, une colonne de plus dans la Sheet).
+- **Mode hors connexion :** garder la dernière liste en cache sur le téléphone pour consulter sans réseau.

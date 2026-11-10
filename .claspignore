@@ -1,0 +1,7 @@
+# Seuls les fichiers de l'app Google Script partent vers Apps Script (pas la PWA ni les scripts).
+**/**
+!appsscript.json
+!Code.gs
+!Supabase.gs
+!Sync.gs
+!Index.html
